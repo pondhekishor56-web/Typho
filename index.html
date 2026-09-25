@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mobile Share Panel - Multiple</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; background: #f4f4f9; text-align: center; }
+        .card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); margin-top: 10px; }
+        .gallery { display: flex; flex-direction: column; gap: 10px; margin-bottom: 15px; }
+        .gallery img { max-width: 100%; border-radius: 5px; border: 1px solid #ccc; }
+        #messageText { font-size: 16px; color: #333; text-align: left; background: #e9ecef; padding: 10px; border-radius: 5px; white-space: pre-wrap; margin-bottom: 15px;}
+        .btn { padding: 15px; font-size: 16px; font-weight: bold; border-radius: 5px; border: none; cursor: pointer; width: 100%; display: block; box-sizing: border-box; }
+        .btn-share { background-color: #25D366; color: white; }
+    </style>
+</head>
+<body>
+
+    <h2>Aapka Data Ready Hai</h2>
+    
+    <div class="card">
+        <p id="messageText" style="display: none;"></p>
+        
+        <!-- Yahan saari photos aayengi -->
+        <div class="gallery" id="galleryContainer"></div>
+
+        <button class="btn btn-share" id="shareButton">📲 WhatsApp Pe Bhejein</button>
+        <p id="statusMsg" style="margin-top: 10px; color: gray; font-size: 14px;"></p>
+    </div>
+
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const imgsParam = urlParams.get('imgs');
+        const userMessage = urlParams.get('text');
+        
+        let imageUrls = [];
+
+        if(imgsParam) {
+            imageUrls = imgsParam.split(','); // Comma se alag karke array banao
+            let gallery = document.getElementById('galleryContainer');
+            
+            imageUrls.forEach(url => {
+                let img = document.createElement('img');
+                img.src = url;
+                gallery.appendChild(img);
+            });
+        } else {
+            document.getElementById('statusMsg').innerText = "Koi photo nahi mili. Kripya QR dobara scan karein.";
+        }
+
+        if(userMessage) {
+            let msgBox = document.getElementById('messageText');
+            msgBox.innerText = userMessage;
+            msgBox.style.display = "block";
+        }
+
+        // --- Multiple Files Share Logic ---
+        document.getElementById('shareButton').addEventListener('click', async function() {
+            if (imageUrls.length === 0) return;
+            
+            let btn = document.getElementById('shareButton');
+            let status = document.getElementById('statusMsg');
+            
+            btn.innerText = "⏳ Processing...";
+            btn.disabled = true;
+
+            try {
+                let filesArray = [];
+                
+                // Saari photos ko internet se download karke ek list (Array) me dalna
+                for(let i = 0; i < imageUrls.length; i++) {
+                    status.innerText = `Preparing photo ${i+1} of ${imageUrls.length}...`;
+                    let response = await fetch(imageUrls[i]);
+                    let blob = await response.blob();
+                    let file = new File([blob], `Excel_Data_${i+1}.png`, { type: blob.type });
+                    filesArray.push(file);
+                }
+
+                // WhatsApp / Mobile Share API ko multiple files dena
+                if (navigator.share) {
+                    status.innerText = "Opening WhatsApp...";
+                    await navigator.share({
+                        files: filesArray,
+                        title: 'Excel Data',
+                        text: userMessage || ''
+                    });
+                    status.innerText = "✅ Successfully Shared!";
+                } else {
+                    alert("Aapka mobile browser share support nahi karta.");
+                }
+            } catch (error) {
+                console.error("Share error:", error);
+                status.innerText = "❌ Share cancel ho gaya ya error aayi.";
+            } finally {
+                btn.innerText = "📲 WhatsApp Pe Bhejein";
+                btn.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>
